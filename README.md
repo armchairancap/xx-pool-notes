@@ -1,18 +1,20 @@
 - [xx-pool-notes](#xx-pool-notes)
 - [Methodology](#methodology)
   - [Self-identified pools](#self-identified-pools)
-  - [Less obvious](#less-obvious)
+  - [Non-obvious pools](#non-obvious-pools)
 - [Blocking approach](#blocking-approach)
 - [How to find a validator node's IP address](#how-to-find-a-validator-nodes-ip-address)
 - [Using `ufw` to block pool nodes](#using-ufw-to-block-pool-nodes)
   - [Unblock blocked IPs](#unblock-blocked-ips)
 - [Automation](#automation)
+- [Monitoring](#monitoring)
 - [Blacklists, whitelists, graylists](#blacklists-whitelists-graylists)
+- [Privacy](#privacy)
 - [Community contributions](#community-contributions)
 
 ## xx-pool-notes
 
-These are notes on centralized validator pools on xx Network, mostly consisting of instructions of how to identify and block validator nodes that belong to centralized pools.
+These are notes on centralized validator pools on xx Network, mostly consisting of instructions of how to identify and block xx Network validator nodes that belong to large centralized pools (large means five or more validator stacks).
 
 You may read about the problem below, but long story short these centralized pools weaken the security of xx Network's cMix as well as xx chain.
 
@@ -33,15 +35,40 @@ How to find 'em? They usually have something in common. For now we can single ou
   - shared controller (wallet) 
   - on-chain transaction relationships among controlling wallets
 
+This screenshot illustrates the latter case:
+
+- Five nodes
+- Same location
+- Extremely high commission (fine in itself) indicates only the owner would nominate such nodes
+ 
+![Less obvious pool](images/less-obvious-pool.png)
+
+We can say this *likely* a single operator running a large pool. This is "gray area" to say the least. The operator could simply run four nodes and deploy the rest of their resources on some other chain, but they prefer to run five nodes here for own convenience. All right, then!
+
 ### Self-identified pools
 
+This list may change and may not necessarily be updated when/if it does change. But at the time of writing, these are some of the more prominent centralized pools with more than four nodes:
+
 - MONEYTEAM
+  - Sample cMix ID: https://dashboard.xx.network/nodes/coA_NSJnzDh1pdPAkmWtPpNEvogM0isISv9SS0bs0R0C
 - CRYPTOCALIBUR
+  - Sample cMix ID: https://dashboard.xx.network/nodes/z6iiPShZLYn6wKy_kmMbFenQRoPZnBoKr3GzQXeKndkC
 - UNITED EARTH
+  - Sample cMix ID: https://dashboard.xx.network/nodes/UE_DIV4NVhpgLDsPdqoTl5Wyf3pI1RkvSgnGBfNNUdsC
 
-### Less obvious 
+### Non-obvious pools
 
-TBD (TODO: need to see if IP addresses may be published on Github).
+This repo may publish cMix IDs of nodes believed to be controlled by one entity (operator or operators). See [Privacy](#privacy) for more information.
+
+Taking the screenshot above as an example, these would be cMix IDs of the five nodes:
+
+```
+w6f3Hf07TwJlfK8XSQpXCCTK7SH7-GPwAXgtX7fgWMMC # https://dashboard.xx.network/nodes/w6f3Hf07TwJlfK8XSQpXCCTK7SH7-GPwAXgtX7fgWMMC
+W-ZHoPZ85yTkX7kUge8F5_Es4P5I3edvIocmFHEKrxEC # https://dashboard.xx.network/nodes/W-ZHoPZ85yTkX7kUge8F5_Es4P5I3edvIocmFHEKrxEC
+z1zssHc6Cyyp2azJZrEsxXBHNTnnz0Z9X8ib2RI9GPUC # https://dashboard.xx.network/nodes/z1zssHc6Cyyp2azJZrEsxXBHNTnnz0Z9X8ib2RI9GPUC
+pSyg29YV6I6LlErWbVPYMq2UgzAr7c7-Mz8RZqTl-rAC # https://dashboard.xx.network/nodes/pSyg29YV6I6LlErWbVPYMq2UgzAr7c7-Mz8RZqTl-rAC
+dPiLLh28uilU5cPmf5qU61rijOQL1F90rjGE4df8xVIC # https://dashboard.xx.network/nodes/dPiLLh28uilU5cPmf5qU61rijOQL1F90rjGE4df8xVIC 
+```
 
 ## Blocking approach
 
@@ -57,15 +84,20 @@ Let's take `MONEYTEAM 04` (on-chain ID of a validator) for an example. Use xx Ne
 
 This node is currently controlled by wallet `6VzVErFXM3e9FE8uvSU7fwCpMuJW8j8HWMxz62kQwexvxjF6` which the xx Network Walle shows has the cMix ID of `jBRTuDxyR8q0hAIN6T24nyqK/cBMOhiITIAeLQpEF5YC`. 
 
-Now go to your node, and `grep` the log for that cMix ID and you'l see this node's IP address or hostname.
+Now go to your node, and `grep` the log for that cMix ID and you'l see this node's IP address or hostname. Using the last of the five cMix IDs above (dPiLLh28uilU5cPmf5qU61rijOQL1F90rjGE4df8xVIC):
 
-The next step is to use `ufw` to block it.
+```sh
+$ cat /opt/xxnetwork/log/cmix.log | grep dPiLLh28uilU5cPmf5qU61rijOQL1F90rjGE4df8xVIC | grep "at " | awk '{print $8}' | cut -f 1 -d ":"
+81.7.xxx.xxx
+```
+
+The next step is to use `ufw` to block that IP address.
 
 ## Using `ufw` to block pool nodes
 
-We want to block them on the cMix server.
+We want to block their cMix server ("node") on our cMix server.
 
-Store IP addresses in a list such as pool_list.txt:
+Store their IPv4 addresses in a list such as pool_list.txt:
 
 ```raw
 2.2.2.2
@@ -100,7 +132,7 @@ Status: active
 
 You can now watch with `sudo tail -f /var/log/syslog` and should see those IPs blocked (when they get scheduled to run in rounds with your node).
 
-You could run this on a regular basis, as existing rules are skipped.
+You could run this on a regular basis without "editing" rules, because `ufw` automatically skips duplicate rules.
 
 ```sh
 $ sudo bash block.sh 
@@ -124,22 +156,41 @@ If you have many rules, you may use unban_pools.sh from the examples folder. It 
 
 We could use scheduled jobs (cron or other) to get a pool IP blacklist from this repo and apply it. 
 
-But the publishing of IPs may not be allowed in some jurisdictions so for now only the methodology will be published as it is done above.
+But the publishing of IPs may not be allowed in some jurisdictions, so for now only the methodology will be published as per above.
 
-It should be fine to publish cMix IDs which you could convert to IPv4 addresses on your own, so this will be considered.
+It should be fine to publish cMix IDs which you could convert to IPv4 addresses on your own (using cmix.log data).
 
-Another promising approach would be with fail2ban, for which we could define custom actions (e.g. ban for a day). Then the blacklist could be pulled daily and any nodes that get *removed* from it, would be automatically removed by fail2ban within 24 hours. Depending on interest, these instructions may be created at a later time.
+Another promising approach would be with fail2ban, for which we could define custom actions (e.g. ban for a day). Then the blacklist could be pulled daily and any nodes that get *removed* from it would be automatically removed by fail2ban within 24 hours. Depending on interest, these instructions may be created at a later time.
+
+## Monitoring
+
+To confirm rounds are failing as expected, do another grep command on cmix.log to make sure rounds with blocked, and only with blocked, nodes are failing as expected.
+
+With a list that has 10 or more IP addresses, your node would earn less. Cut the list to a manageable size (e.g. pick just `MONEYTEAM`) if you cannot tolerate lower earnings.
 
 ## Blacklists, whitelists, graylists
 
-cMix IDs of large pool members are published in a blacklist. 
+cMix IDs of large pool members are published in a blacklist.
 
-A graylist with suspicious validators may be published as well. It could be used by ethical nominators as an "avoid list" when nominating.
+A graylist with suspicious validators may be published as well. It could be used by ethical nominators as an "avoid list" when nominating ("staking") node operators.
 
-Depending on interest, a whitelist may be created as well. The purpose of a whitelist would be to validate self-produced blacklists to potentially avoid blocking good nodes. This would be advisory, obviously, and could be added to a script to warn or drop blocking IDs from the blacklist. We could also use it to encourage nominators to nominate 
+Depending on interest, a whitelist may be created as well. The purpose of a whitelist would be to validate self-produced blacklists to potentially avoid blocking good nodes. This would be advisory, obviously, and could be added to a script to warn or drop blocking IDs from the blacklist. We can also use it to encourage nominators to nominate ethical, privacy-respecting validators.
+
+## Privacy
+
+According to [this](https://law.stackexchange.com/questions/41540/is-a-public-ip-address-classified-as-personal-data-for-a-third-party-under-eu), IP addresses, even dynamic ones, are considered Personal Data (PD) in some jurisdictions:
+
+> While the case law is scanty on the point, it appears that the consensus is that IP addresses, even dynamic IP addresses, will be considered to be Personal Data under the GDPR.
+
+There are arguments (in the comments) that point out that addresses that do not belong to natural persons aren't PD. But in our case they would be for anyone running cMix at home from an address shared by natural persons. I will therefore **not** publish IP addresses in this repository. 
+
+But cMix IDs are not Personal Data. They would be *if* the operators were to identify themselves, so for time being, cMix IDs will be listed *unless* the wallet has on-chain identity clearly identifying natural person at the time of listing. Pull requests to *remove* cMIx IDs of node operators who provide PD in on-chain identity after the fact will be accommodated. Because of the nature of such removal, this repository's history may need to be removed after each request.
+
+Note that nodes who belong to operators with self-published on-chain identity will be easily identifiable, so requesting a removal of a cMix ID due to an on-chain identity with personal data would simply make it clear such nodes *are* in fact operated by a large pool operator and therefore easy to identify from on-chain data and without this repo publishing anything about the node or its operator.
 
 ## Community contributions
 
-Contributions are welcome. Please create a pull request to update cMix ID blacklist or whitelist, or submit an issue with suspected cMix ID and indications of the problems it has.
+Contributions are welcome. Please create a pull request to update cMix ID blacklist or whitelist, or submit an issue with suspected cMix ID and share your concerns.
 
 You can also contribute by *nominating* my pool or validators that block centralized pools or contribute here.
+
