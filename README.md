@@ -5,22 +5,28 @@
 - [Blocking approach](#blocking-approach)
 - [How to find a validator node's IP address](#how-to-find-a-validator-nodes-ip-address)
 - [Using `ufw` to block pool nodes](#using-ufw-to-block-pool-nodes)
-  - [Unblock blocked IPs](#unblock-blocked-ips)
+- [Unblock blocked IPs](#unblock-blocked-ips)
+- [Update blocked IPs](#update-blocked-ips)
 - [Automation](#automation)
 - [Monitoring](#monitoring)
 - [Blacklists, whitelists, graylists](#blacklists-whitelists-graylists)
 - [Privacy](#privacy)
 - [Community contributions](#community-contributions)
+- [Delegate voting and staking to `ARMCHAIRANCAP`](#delegate-voting-and-staking-to-armchairancap)
 
 ## xx-pool-notes
 
-These are notes on centralized validator pools on xx Network, mostly consisting of instructions of how to identify and block xx Network validator nodes that belong to large centralized pools (large means five or more validator stacks).
+These are notes on (identifying and blocking) centralized validator pools on xx Network, mostly consisting of instructions of how to identify and block xx Network validator nodes that belong to large centralized pools (large means five or more validator stacks).
 
 You may read about the problem below, but long story short these centralized pools weaken the security of xx Network's cMix as well as xx chain.
 
 - [An attempt to address validator centralization problem](https://armchairancap.github.io/blog/2025/01/06/xx-network-armchairancap-pool)
 - [First anti-pool pool node elected](https://armchairancap.github.io/blog/2025/01/23/xx-network-armchairancap-pool-elected)
 
+To save time, you can simply nominate one one of `ARMCHAIRANCAP` nodes - I'll do the blocking for you.
+
+If you're a validator you can continue reading and use this approach to block pools on your own. 
+ 
 ## Methodology
 
 xx Network's cMixx mixnet currently uses groups of five nodes. Therefore, no operator should run more than four nodes.
@@ -104,9 +110,9 @@ Store their IPv4 addresses in a list such as pool_list.txt:
 3.3.3.3
 ```
 
-If they use FQDNs, resolve those to IPv4 addresses first.
+If their cMix node uses FQDN (Dynamic DNS, for example), resolve those to IPv4 addresses first.
 
-Then run this script:
+Then run this script (which, by the way, requires that `ufw` be enabled and at least one rule - such as to allow SSH - to exist, which is the default in xx Network Handbook):
 
 ```sh
 #!/usr/bin/env bash
@@ -140,7 +146,7 @@ Skipping inserting existing rule
 Skipping inserting existing rule
 ```
 
-### Unblock blocked IPs
+## Unblock blocked IPs
 
 You can remove the rules like this:
 
@@ -151,6 +157,24 @@ sudo ufw delete  2
 ```
 
 If you have many rules, you may use unban_pools.sh from the examples folder. It can delete 100+ rules in seconds.
+
+If you want to delete only *some* of the nodes from the list:
+- make a copy of the list
+- unblock all nodes (using the original list)
+- then edit the copy of the list (remove certain nodes), copy it over the original list and block the nodes from the list
+
+## Update blocked IPs
+
+- Using **current** pool IP list, run unblock script to unblock the entire list
+- Make a copy of the list. Update list with new IP(s) and run block script on the list
+
+If you want to add block just one address manually, just use the command from the block script:
+
+```sh
+sudo ufw insert 1 deny from xxx.xxx.xxx.xxx comment "blocked pool member"
+```
+
+It's better to use pool_list.txt, though, because it's easier to keep track of addresses: `cat pool_list.txt | grep A.B.C.D` or `ufw status numbered | grep A.B.C.D` tells you if the address (`A.B.C.D`) is already blocked. If not, just update the list and re-apply with the script.
 
 ## Automation
 
@@ -193,4 +217,9 @@ Note that nodes who belong to operators with self-published on-chain identity wi
 Contributions are welcome. Please create a pull request to update cMix ID blacklist or whitelist, or submit an issue with suspected cMix ID and share your concerns.
 
 You can also contribute by *nominating* my pool or validators that block centralized pools or contribute here.
+
+## Delegate voting and staking to `ARMCHAIRANCAP`
+
+If you'd like to leave your staking management to me, you may delegate it to me like so.
+
 
